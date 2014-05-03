@@ -16,6 +16,7 @@ const int MaxCounter = 50;
 const int nc = OSC_CAM_MAX_IMAGE_WIDTH/2;
 const int nr = OSC_CAM_MAX_IMAGE_HEIGHT/2;
 const int siz = (OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2);
+const int msiz = 0.05 * (OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2);
 
 OSC_ERR OscInitChgDetection();
 OSC_ERR OscUpdateChgDetection(int InputIndex, int OutputIndex);
@@ -24,9 +25,13 @@ OSC_ERR OscErosion(int InputIndex, int OuputIndex);
 OSC_ERR OscDilatation(int InputIndex, int OuputIndex);
 OSC_ERR OscOpening(int InputOutput, int Help);
 OSC_ERR OscClosing(int InputOutput, int Help);
+OSC_ERR OscWrapping(int InputIndex, struct OSC_PICTURE* outpic);
 
 void ProcessFrame(uint8 *pInputImg)
 {
+	struct OSC_PICTURE wrap_pic, gray_pic;
+	struct OSC_VIS_REGIONS regions;
+
 	//initialize counters
 	if(data.ipc.state.nStepCounter == 1) {
 		OscInitChgDetection();
@@ -34,9 +39,19 @@ void ProcessFrame(uint8 *pInputImg)
 	//do change detection update
 	OscUpdateChgDetection(GRAYSCALE, THRESHOLD);
 
-	//do morphologic operations
+	//do morphology
 	OscOpening(THRESHOLD, BACKGROUND);
 	OscClosing(THRESHOLD, BACKGROUND);
+
+
+	//do region labeling
+	OscWrapping(THRESHOLD, &wrap_pic);
+
+	OscVisLabelBinary(&wrap_pic, &regions);
+	OscVisGetRegionProperties(&regions);
+
+	OscWrapping(GRAYSCALE, &gray_pic);
+	OscVisDrawBoundingBoxBW(&gray_pic, &regions, 0xFF, msiz);
 }
 
 
@@ -104,7 +119,7 @@ OSC_ERR OscUpdateChgDetection(int InputIndex, int OutputIndex)
 				}
 			}
 			//condition for foreground
-			data.u8TempImage[OutputIndex][r+c] = (MaxV > MaxCounter/2) && (Index != MaxI) ? 255 : 0;
+			data.u8TempImage[OutputIndex][r+c] = (MaxV > MaxCounter/2) && (Index != MaxI) ? 1 : 0;
 		}
 	}
 	return SUCCESS;
@@ -183,5 +198,14 @@ OSC_ERR OscOpening(int InputOutput, int Help){
 OSC_ERR OscClosing(int InputOutput, int Help){
 	OscDilatation(InputOutput, Help);
 	OscErosion(Help, InputOutput);
+	return SUCCESS;
+}
+
+OSC_ERR OscWrapping(int InputIndex, struct OSC_PICTURE* outpic){
+	outpic->data = (void *)&data.u8TempImage[InputIndex];
+	outpic->width = (unsigned short)nc;
+	outpic->height = (unsigned short)nr;
+	outpic->type = OSC_PICTURE_GREYSCALE;
+
 	return SUCCESS;
 }

@@ -20,7 +20,10 @@ const int siz = (OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2);
 OSC_ERR OscInitChgDetection();
 OSC_ERR OscUpdateChgDetection(int InputIndex, int OutputIndex);
 OSC_ERR OscVisDrawBoundingBoxBW(struct OSC_PICTURE *picIn, struct OSC_VIS_REGIONS *regions, uint8 Color, int MinSize);
-
+OSC_ERR OscErosion(int InputIndex, int OuputIndex);
+OSC_ERR OscDilatation(int InputIndex, int OuputIndex);
+OSC_ERR OscOpening(int InputOutput, int Help);
+OSC_ERR OscClosing(int InputOutput, int Help);
 
 void ProcessFrame(uint8 *pInputImg)
 {
@@ -30,6 +33,10 @@ void ProcessFrame(uint8 *pInputImg)
 	}
 	//do change detection update
 	OscUpdateChgDetection(GRAYSCALE, THRESHOLD);
+
+	//do morphologic operations
+	OscOpening(THRESHOLD, BACKGROUND);
+	OscClosing(THRESHOLD, BACKGROUND);
 }
 
 
@@ -137,3 +144,44 @@ OSC_ERR OscVisDrawBoundingBoxBW(struct OSC_PICTURE *picIn, struct OSC_VIS_REGION
 }
 
 
+OSC_ERR OscErosion(int InputIndex, int OutputIndex){
+	int c, r;
+	for(r = nc; r < siz-nc; r+= nc)/* we skip the first and last line */
+	{
+		for(c = 1; c < nc-1; c++)
+		{
+			unsigned char* p = &data.u8TempImage[InputIndex][r+c];
+			data.u8TempImage[OutputIndex][r+c] = *(p-nc-1) 	& *(p-nc) 	& *(p-nc+1) &
+												 *(p-1)		& *p		& *(p+1)	&
+												 *(p+nc-1) 	& *(p+nc) 	& *(p+nc+1);
+		}
+	}
+	return SUCCESS;
+}
+
+OSC_ERR OscDilatation(int InputIndex, int OutputIndex){
+	int c, r;
+	for(r = nc; r < siz-nc; r+= nc)/* we skip the first and last line */
+	{
+		for(c = 1; c < nc-1; c++)
+		{
+			unsigned char* p = &data.u8TempImage[InputIndex][r+c];
+			data.u8TempImage[OutputIndex][r+c] = *(p-nc-1) 	| *(p-nc) 	| *(p-nc+1) |
+												 *(p-1)		| *p		| *(p+1)	|
+												 *(p+nc-1) 	| *(p+nc) 	| *(p+nc+1);
+		}
+	}
+	return SUCCESS;
+}
+
+OSC_ERR OscOpening(int InputOutput, int Help){
+	OscErosion(InputOutput, Help);
+	OscDilatation(Help, InputOutput);
+	return SUCCESS;
+}
+
+OSC_ERR OscClosing(int InputOutput, int Help){
+	OscDilatation(InputOutput, Help);
+	OscErosion(Help, InputOutput);
+	return SUCCESS;
+}

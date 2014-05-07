@@ -16,7 +16,7 @@ const int MaxCounter = 50;
 const int nc = OSC_CAM_MAX_IMAGE_WIDTH/2;
 const int nr = OSC_CAM_MAX_IMAGE_HEIGHT/2;
 const int siz = (OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2);
-const int msiz = 0.05 * (OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2);
+const int msiz = 0.025 * (OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2);
 
 OSC_ERR OscInitChgDetection();
 OSC_ERR OscUpdateChgDetection(int InputIndex, int OutputIndex);
@@ -46,6 +46,7 @@ void ProcessFrame(uint8 *pInputImg)
 
 	//do region labeling
 	OscWrapping(THRESHOLD, &wrap_pic);
+	OscVisGrey2BW(&wrap_pic, &wrap_pic, 1, FALSE);
 
 	OscVisLabelBinary(&wrap_pic, &regions);
 	OscVisGetRegionProperties(&regions);
@@ -119,7 +120,7 @@ OSC_ERR OscUpdateChgDetection(int InputIndex, int OutputIndex)
 				}
 			}
 			//condition for foreground
-			data.u8TempImage[OutputIndex][r+c] = (MaxV > MaxCounter/2) && (Index != MaxI) ? 1 : 0;
+			data.u8TempImage[OutputIndex][r+c] = (MaxV > MaxCounter/2) && (Index != MaxI) ? 255 : 0;
 		}
 	}
 	return SUCCESS;
